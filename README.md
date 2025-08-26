@@ -8,7 +8,7 @@ Download from the [pre-built static binaries](https://github.com/makestatic/zdu/
 
 ### via installation script
 ```bash
-curl -sSL https://raw.githubusercontent.com/makestatic/zdu/main/scripts/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/makestatic/zdu/master/scripts/install.sh | bash
 ```
 
 ### manual installation 
