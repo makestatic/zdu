@@ -1,0 +1,71 @@
+name: Create Release
+
+on:
+  push:
+    tags:
+      - '*'
+
+permissions:
+  contents: write
+
+jobs:
+  build_and_release:
+    name: Build and Create Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.15.1
+
+      - name: Build the binaries
+        run: make release
+
+      - name: Create tar.gz archives dynamically
+        run: |
+          mkdir -p build
+          name="${GITHUB_REPOSITORY#*/}"
+
+          for dir in build/*; do
+            if [ -d "$dir" ]; then
+              base_name=$(basename "$dir")
+              
+              if [[ "$base_name" == *windows* ]]; then
+                binary="zdu.exe"
+              else
+                binary="zdu"
+              fi
+
+              if [ -f "$dir/$binary" ]; then
+                archive_name="build/${name}-${base_name}.tar.gz"
+                temp_dir="$(mktemp -d)"
+                folder_name="${name}-${base_name}"
+
+                mkdir -p "$temp_dir/$folder_name"
+                cp "$dir/$binary" "$temp_dir/$folder_name/"
+                cp LICENSE README.md "$temp_dir/$folder_name/"
+
+                tar -czf "$archive_name" -C "$temp_dir" "$folder_name"
+                echo "Created archive: $archive_name"
+
+                rm -rf "$temp_dir"
+              else
+                echo "Skipping $dir: binary not found"
+              fi
+            fi
+          done
+
+      - name: Create release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ github.ref_name }}
+        run: |
+          gh release create "$tag" \
+            --repo="$GITHUB_REPOSITORY" \
+            --title="${GITHUB_REPOSITORY#*/} ${tag#v}" \
+            --generate-notes \
+            build/*.tar.gz || echo "No archives to upload"
