@@ -10,7 +10,7 @@ NC="\033[0m"
 OWNER="makestatic"
 REPO="zdu"
 
-echo -e "${BLUE}🛠  Detecting OS and architecture...${NC}"
+echo -e "${BLUE}Detecting OS and architecture...${NC}"
 
 OS="$(uname | tr '[:upper:]' '[:lower:]')"
 ARCH="$(uname -m)"
@@ -26,20 +26,20 @@ case "$OS" in
     mingw*|cygwin*|msys*) OS="windows" ;;
 esac
 
-echo -e "${GREEN}✅ Detected OS: $OS, ARCH: $ARCH${NC}"
+echo -e "${GREEN}Detected OS: $OS, ARCH: $ARCH${NC}"
 
-echo -e "${BLUE}⬇️  Fetching latest release tag from GitHub...${NC}"
+echo -e "${BLUE}Fetching latest release tag from GitHub...${NC}"
 TAG=$(curl -s "https://api.github.com/repos/$OWNER/$REPO/releases/latest" | \
       grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
 
 FILE_NAME="${REPO}-${ARCH}-${OS}.tar.gz"
 DOWNLOAD_URL="https://github.com/$OWNER/$REPO/releases/download/$TAG/$FILE_NAME"
 
-echo -e "${BLUE}⬇️  Downloading $FILE_NAME...${NC}"
+echo -e "${BLUE}Downloading $FILE_NAME...${NC}"
 TMP_DIR=$(mktemp -d)
 curl -sL "$DOWNLOAD_URL" -o "$TMP_DIR/$FILE_NAME"
 
-echo -e "${BLUE}📦 Extracting...${NC}"
+echo -e "${BLUE}Extracting...${NC}"
 tar -xzf "$TMP_DIR/$FILE_NAME" -C "$TMP_DIR"
 
 EXTRACTED_DIR="$TMP_DIR/${REPO}-${ARCH}-${OS}"
@@ -48,10 +48,10 @@ if [ "$OS" = "windows" ]; then
     BIN="$BIN.exe"
 fi
 
-echo -e "${BLUE}⚙️  Installing $BIN to /usr/local/bin...${NC}"
+echo -e "${BLUE}Installing $BIN to /usr/local/bin...${NC}"
 sudo cp "$BIN" /usr/local/bin/zdu
 sudo chmod +x /usr/local/bin/zdu
 
-echo -e "${GREEN}🎉 zdu installed successfully!${NC}"
+echo -e "${GREEN}zdu installed successfully!${NC}"
 
 rm -rf "$TMP_DIR"
