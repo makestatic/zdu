@@ -1,6 +1,20 @@
 ![ZDU](doc/assets/logo.jpg)
 
-**ZDU** is a fast, multithreaded, cross-platform alternative to GNU `du`, written in Zig. It recursively scans directories and reports files, directories, and total disk usage.
+**ZDU** is a fast, multithreaded, cross-platform alternative to `du`, written in Zig. It recursively scans directories and reports files, directories, and total disk usage.
+
+### Performance
+
+| Metric             | ZDU           | du (GNU)     |
+|-------------------|---------------|-------------|
+| Command Used       | `zdu . -h`    | `du -h .`   |
+| Directories        | 10,303        | implicit    |
+| Files              | 37,302        | implicit    |
+| Total Size         | 2.0 GB        | 1.9 GB      |
+| Wall-clock Time    | 31 s          | 64 s        |
+| User CPU Time      | 0.42 s        | 0.90 s      |
+| Sys Time           | 7.8 s         | 8.8 s       |
+| Performance        | 206% Faster   | ...         |
+
 
 ## Installation
 
