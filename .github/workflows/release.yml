@@ -10,7 +10,6 @@ permissions:
 
 jobs:
   build_and_release:
-    name: Build and Create Release
     runs-on: ubuntu-latest
 
     steps:
@@ -25,7 +24,7 @@ jobs:
       - name: Build the binaries
         run: make release
 
-      - name: Create archives dynamically
+      - name: Package binaries
         run: |
           mkdir -p build
           name="${GITHUB_REPOSITORY#*/}"
@@ -35,31 +34,25 @@ jobs:
               base_name=$(basename "$dir")
               temp_dir="$(mktemp -d)"
               folder_name="${name}-${base_name}"
-
               mkdir -p "$temp_dir/$folder_name"
 
-              if [[ "$base_name" == *windows* ]]; then
+              if [[ -f "$dir/zdu.exe" ]]; then
                 binary="zdu.exe"
                 archive_name="build/${folder_name}.zip"
-                if [ -f "$dir/$binary" ]; then
-                  cp "$dir/$binary" "$temp_dir/$folder_name/"
-                  cp LICENSE README.md "$temp_dir/$folder_name/"
-                  (cd "$temp_dir" && zip -r "$archive_name" "$folder_name")
-                  echo "Created Windows archive: $archive_name"
-                else
-                  echo "Skipping $dir: $binary not found"
-                fi
-              else
+                cp "$dir/$binary" "$temp_dir/$folder_name/"
+                cp LICENSE README.md "$temp_dir/$folder_name/"
+                mkdir -p "$(dirname "$archive_name")"
+                (cd "$temp_dir" && zip -r "$GITHUB_WORKSPACE/$archive_name" "$folder_name")
+                echo "Created Windows archive: $archive_name"
+              elif [[ -f "$dir/zdu" ]]; then
                 binary="zdu"
                 archive_name="build/${folder_name}.tar.gz"
-                if [ -f "$dir/$binary" ]; then
-                  cp "$dir/$binary" "$temp_dir/$folder_name/"
-                  cp LICENSE README.md "$temp_dir/$folder_name/"
-                  tar -czf "$archive_name" -C "$temp_dir" "$folder_name"
-                  echo "Created archive: $archive_name"
-                else
-                  echo "Skipping $dir: $binary not found"
-                fi
+                cp "$dir/$binary" "$temp_dir/$folder_name/"
+                cp LICENSE README.md "$temp_dir/$folder_name/"
+                tar -czf "$archive_name" -C "$temp_dir" "$folder_name"
+                echo "Created archive: $archive_name"
+              else
+                echo "Skipping $dir: no binary found"
               fi
 
               rm -rf "$temp_dir"
@@ -87,4 +80,3 @@ jobs:
             echo "Release created with archives: $archives"
           else
             echo "No archives to upload"
-          fi
