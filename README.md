@@ -60,17 +60,17 @@ $ zdu . --verbose
 Output:
 ```text
                         ...
-./.zig-cache/o/9f7280af6858074430ef67b2128d12e3/build_zcu.o
-./.zig-cache/o/aee36d8c5c7ccba1fb65caff314409d2/zdu_zcu.o
-./.zig-cache/o/9f7280af6858074430ef67b2128d12e3/build
-./.zig-cache/o/aee36d8c5c7ccba1fb65caff314409d2/zdu
-./.zig-cache/o/bbaed4b8a94d4cfcc89cddb1634917f2/build_zcu.o
-./.zig-cache/o/bbaed4b8a94d4cfcc89cddb1634917f2/build
+1000B ./.zig-cache/o/9f7280af6858074430ef67b2128d12e3/build_zcu.o
+1000B ./.zig-cache/o/aee36d8c5c7ccba1fb65caff314409d2/zdu_zcu.o
+1000B ./.zig-cache/o/9f7280af6858074430ef67b2128d12e3/build
+1000B ./.zig-cache/o/aee36d8c5c7ccba1fb65caff314409d2/zdu
+1000B ./.zig-cache/o/bbaed4b8a94d4cfcc89cddb1634917f2/build_zcu.o
+1000B ./.zig-cache/o/bbaed4b8a94d4cfcc89cddb1634917f2/build
 ================= ZDU Report =================
-| Entry Path   | .
-| Directories  | 245
-| Files        | 216
-| Total Size   | 610857133 BYTES | 582 MB
+Entry Path   | .
+Directories  | 10,303
+Files        | 37,302
+Total Size   | 1,865,390,941 bytes (1.78 GB)
 ==============================================
 ```
 
