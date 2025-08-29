@@ -3,7 +3,7 @@ name: Create Release
 on:
   push:
     tags:
-      - '*'
+      - "*"
 
 permissions:
   contents: write
@@ -64,19 +64,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ github.ref_name }}
         run: |
-          archives=""
-          for f in build/*.{tar.gz,zip}; do
-            if [ -f "$f" ]; then
-              archives="$archives $f"
-            fi
-          done
-
-          if [ -n "$archives" ]; then
             gh release create "$tag" \
               --repo="$GITHUB_REPOSITORY" \
               --title="${GITHUB_REPOSITORY#*/} ${tag#v}" \
               --generate-notes \
-              $archives
-            echo "Release created with archives: $archives"
-          else
-            echo "No archives to upload"
+              build/**/*
+            echo "Release created"
