@@ -3,13 +3,14 @@ name: Create Release
 on:
   push:
     tags:
-      - "*"
+      - '*'
 
 permissions:
   contents: write
 
 jobs:
   build_and_release:
+    name: Build and Create Release
     runs-on: ubuntu-latest
 
     steps:
@@ -24,7 +25,7 @@ jobs:
       - name: Build the binaries
         run: make release
 
-      - name: Package binaries
+      - name: Create archives dynamically
         run: |
           mkdir -p build
           name="${GITHUB_REPOSITORY#*/}"
@@ -32,30 +33,41 @@ jobs:
           for dir in build/*; do
             if [ -d "$dir" ]; then
               base_name=$(basename "$dir")
-              temp_dir="$(mktemp -d)"
-              folder_name="${name}-${base_name}"
-              mkdir -p "$temp_dir/$folder_name"
-
-              if [[ -f "$dir/zdu.exe" ]]; then
+              
+              if [[ "$base_name" == *windows* ]]; then
                 binary="zdu.exe"
-                archive_name="build/${folder_name}.zip"
-                cp "$dir/$binary" "$temp_dir/$folder_name/"
-                cp LICENSE README.md "$temp_dir/$folder_name/"
-                mkdir -p "$(dirname "$archive_name")"
-                (cd "$temp_dir" && zip -r "$GITHUB_WORKSPACE/$archive_name" "$folder_name")
-                echo "Created Windows archive: $archive_name"
-              elif [[ -f "$dir/zdu" ]]; then
-                binary="zdu"
-                archive_name="build/${folder_name}.tar.gz"
-                cp "$dir/$binary" "$temp_dir/$folder_name/"
-                cp LICENSE README.md "$temp_dir/$folder_name/"
-                tar -czf "$archive_name" -C "$temp_dir" "$folder_name"
-                echo "Created archive: $archive_name"
-              else
-                echo "Skipping $dir: no binary found"
-              fi
+                archive_name="build/${name}-${base_name}.zip"
+                temp_dir="$(mktemp -d)"
+                folder_name="${name}-${base_name}"
 
-              rm -rf "$temp_dir"
+                mkdir -p "$temp_dir/$folder_name"
+                cp "$dir/$binary" "$temp_dir/$folder_name/"
+                cp LICENSE README.md "$temp_dir/$folder_name/"
+
+                # Create zip instead of tar.gz
+                (cd "$temp_dir" && zip -r "$archive_name" "$folder_name")
+                echo "Created archive: $archive_name"
+
+                rm -rf "$temp_dir"
+              else
+                binary="zdu"
+                if [ -f "$dir/$binary" ]; then
+                  archive_name="build/${name}-${base_name}.tar.gz"
+                  temp_dir="$(mktemp -d)"
+                  folder_name="${name}-${base_name}"
+
+                  mkdir -p "$temp_dir/$folder_name"
+                  cp "$dir/$binary" "$temp_dir/$folder_name/"
+                  cp LICENSE README.md "$temp_dir/$folder_name/"
+
+                  tar -czf "$archive_name" -C "$temp_dir" "$folder_name"
+                  echo "Created archive: $archive_name"
+
+                  rm -rf "$temp_dir"
+                else
+                  echo "Skipping $dir: binary not found"
+                fi
+              fi
             fi
           done
 
@@ -64,9 +76,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ github.ref_name }}
         run: |
-            gh release create "$tag" \
-              --repo="$GITHUB_REPOSITORY" \
-              --title="${GITHUB_REPOSITORY#*/} ${tag#v}" \
-              --generate-notes \
-              build/*
-            echo "Release created"
+          gh release create "$tag" \
+            --repo="$GITHUB_REPOSITORY" \
+            --title="${GITHUB_REPOSITORY#*/} ${tag#v}" \
+            --generate-notes \
+            build/*.{tar.gz,zip} || echo "No archives to upload"
