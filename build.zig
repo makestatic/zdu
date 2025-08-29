@@ -34,7 +34,6 @@ pub fn build(b: *std.Build) !void {
 fn build_targets(b: *std.Build) !void {
     const targets: []const std.Target.Query = &.{
         .{ .cpu_arch = .x86_64, .os_tag = .linux },
-        .{ .cpu_arch = .x86, .os_tag = .linux },
         .{ .cpu_arch = .aarch64, .os_tag = .linux },
         .{ .cpu_arch = .x86_64, .os_tag = .freebsd },
         .{ .cpu_arch = .aarch64, .os_tag = .freebsd },
