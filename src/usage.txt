@@ -1,0 +1,17 @@
+
+USAGE: zdu [path] [options]
+
+  OPTIONS:
+      -ex=<exclude>   exclude a directory (can be specified multiple times)
+      -v, --verbose   verbose output (may impact performance)
+      -q, --quiet     quiet output (default)
+      --v,--version   print version
+      -h, --help      print this help message
+
+  EXAMPLES:
+      zdu /home/user  # use defaults
+      zdu /home/user -ex=build
+      zdu /home/user -ex=build -ex=dist
+      zdu /home/user -ex=build -ex=dist --verbose
+
+

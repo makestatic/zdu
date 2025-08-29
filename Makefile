@@ -8,7 +8,7 @@ OPT_DEBUG = Debug
 
 all: native
 native: clean
-	zig build -Doptimize=$(OPT_SAFE) --prefix $(BUILD_DIR)
+	zig build -Doptimize=$(OPT_SAFE) --prefix $(BUILD_DIR) --summary all -Dstrip
 release: clean
 	zig build -Dbuild-all-targets --prefix $(BUILD_DIR)
 clean:

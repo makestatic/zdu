@@ -1,10 +1,10 @@
 ![ZDU](doc/assets/logo.jpg)
 
-**ZDU** is a fast, multithreaded, cross-platform alternative to GNU `du`, written in Zig. It recursively scans directories and reports file counts, directory counts, and total disk usage.
+**ZDU** is a fast, multithreaded, cross-platform alternative to GNU `du`, written in Zig. It recursively scans directories and reports files, directories, and total disk usage.
 
 ## Installation
 
-Download from the [pre-built static binaries](https://github.com/makestatic/zdu/releases) for Linux, macOS, and Windows.
+Download from the pre-built static binaries [page](https://github.com/makestatic/zdu/releases), for Linux, FreeBSD, macOS, and Windows.
 
 ### via installation script
 ```bash
@@ -21,13 +21,26 @@ $ sudo make install
 
 ## Usage
 ```bash
-$ zdu <path>
+zdu [path] [options]
+
+  OPTIONS:
+      -ex=<exclude>   exclude a directory (can be specified multiple times)
+      -v, --verbose   verbose output (may impact performance)
+      -q, --quiet     quiet output (default)
+      --v,--version   print version
+      -h, --help      print this help message
+
+  EXAMPLES:
+      zdu /home/user  # use defaults
+      zdu /home/user -ex=build
+      zdu /home/user -ex=build -ex=dist
+      zdu /home/user -ex=build -ex=dist --verbose
 ```
 
 Example:
 ```bash
 # current working directory
-$ zdu .
+$ zdu . --verbose
 ```
 
 Output:
@@ -40,11 +53,10 @@ Output:
 ./.zig-cache/o/bbaed4b8a94d4cfcc89cddb1634917f2/build_zcu.o
 ./.zig-cache/o/bbaed4b8a94d4cfcc89cddb1634917f2/build
 ================= ZDU Report =================
-   Entry Path  : `.`
-----------------------------------------------
-   Directory   : 38   
-   File        : 71
-   Total Size  : 226006729 bytes / 215 mb
+| Entry Path   | .
+| Directories  | 245
+| Files        | 216
+| Total Size   | 610857133 BYTES | 582 MB
 ==============================================
 ```
 
