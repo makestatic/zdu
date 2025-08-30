@@ -2,8 +2,13 @@
 
 **ZDU** is a fast, multithreaded, cross-platform alternative to `du`, written in Zig. It recursively scans directories and reports files, directories, and total disk usage.
 
-# Performance Comparison
+## Performance 
 
+### Summary
+ZDU scans directories **~3.34× faster** than GNU du on this target directory, while giving a full report of files, directories, and sizes.
+
+
+### Benchmark
 System Information:
 - CPU: 4 cores
 - Memory: 4 GB
@@ -14,17 +19,24 @@ Commands:
 - GNU du: `du -h .`
 - Target Directory: `.` (home directory)
 
-Metric                 | ZDU       | GNU du   | Relative Performance
------------------------|-----------|----------|-------------------
-Directories            | 8,475     | N/A      | -
-Files                  | 43,889    | N/A      | -
-Total Size             | 2.0 GB    | 1.9 GB   | -
-Wall-clock Time        | 21.08 s   | 64.00 s  | ~3x faster
-User CPU Time          | 0.66 s    | 0.90 s   | ~27% faster
-Sys CPU Time           | 10.60 s   | 8.80 s   | ~20% slower
-Total CPU Time         | 11.26 s   | 9.70 s   | ~16% slower
-Overall                | 32.35 s   | 73.70 s  | ~2.28x faster
 
+| Metric             | **ZDU**       | **GNU du**     | Notes |
+|-------------------|---------------|----------------|------|
+| Total Size        | 1.21 GB       | 1.2 GB         | Slight differences due to block counting |
+| Directories       | 8,337         | N/A            | ZDU counts natively |
+| Files             | 43,590        | N/A            | ZDU counts natively |
+| **Real Time**     | 15.1 s        | 50.484 s       | ZDU ~**3.34× faster** |
+| CPU Time          | 7.773 s       | 11.298 s       | ZDU uses less CPU |
+| I/O Bound         | ✅            | ✅             | Most of the time spent on disk operations |
+| Ease of Reporting | High          | Low            | ZDU outputs a formatted report, du needs scripting |
+
+### Key Takeaways
+- **Speed:** ZDU is significantly faster for large directory trees.
+- **Information:** ZDU provides directories, file counts, and sizes out-of-the-box.
+- **Reporting:** ZDU produces a clean report; GNU du is minimal and needs extra commands (e.g. `find`) for full info.
+- **Use Case:** ZDU for auditing or full reports; GNU du for simple size checks or lightweight scripts.
+
+---
 
 ## Installation
 
