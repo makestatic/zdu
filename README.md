@@ -2,18 +2,28 @@
 
 **ZDU** is a fast, multithreaded, cross-platform alternative to `du`, written in Zig. It recursively scans directories and reports files, directories, and total disk usage.
 
-### Performance
+# Performance Comparison
 
-| Metric             | ZDU           | du (GNU)     |
-|-------------------|---------------|-------------|
-| Command Used       | `zdu . -h`    | `du -h .`   |
-| Directories        | 10,303        | implicit    |
-| Files              | 37,302        | implicit    |
-| Total Size         | 2.0 GB        | 1.9 GB      |
-| Wall-clock Time    | 31 s          | 64 s        |
-| User CPU Time      | 0.42 s        | 0.90 s      |
-| Sys Time           | 7.8 s         | 8.8 s       |
-| Performance        | 206% Faster   | ...         |
+System Information:
+- CPU: 4 cores
+- Memory: 4 GB
+- OS: Linux 6.2.1-aarch64 GNU/Linux
+
+Commands:
+- ZDU: `zdu . -v`
+- GNU du: `du -h .`
+- Target Directory: `.` (home directory)
+
+Metric                 | ZDU       | GNU du   | Relative Performance
+-----------------------|-----------|----------|-------------------
+Directories            | 8,475     | N/A      | -
+Files                  | 43,889    | N/A      | -
+Total Size             | 2.0 GB    | 1.9 GB   | -
+Wall-clock Time        | 21.08 s   | 64.00 s  | ~3x faster
+User CPU Time          | 0.66 s    | 0.90 s   | ~27% faster
+Sys CPU Time           | 10.60 s   | 8.80 s   | ~20% slower
+Total CPU Time         | 11.26 s   | 9.70 s   | ~16% slower
+Overall                | 32.35 s   | 73.70 s  | ~2.28x faster
 
 
 ## Installation
@@ -52,25 +62,27 @@ zdu [path] [options]
 ```
 
 Example:
+
+`.`: zdu project directory.
+
 ```bash
-# current working directory
 $ zdu . --verbose
 ```
 
 Output:
 ```text
                         ...
-1000B ./.zig-cache/o/9f7280af6858074430ef67b2128d12e3/build_zcu.o
-1000B ./.zig-cache/o/aee36d8c5c7ccba1fb65caff314409d2/zdu_zcu.o
-1000B ./.zig-cache/o/9f7280af6858074430ef67b2128d12e3/build
-1000B ./.zig-cache/o/aee36d8c5c7ccba1fb65caff314409d2/zdu
-1000B ./.zig-cache/o/bbaed4b8a94d4cfcc89cddb1634917f2/build_zcu.o
-1000B ./.zig-cache/o/bbaed4b8a94d4cfcc89cddb1634917f2/build
+79.83 KB  ./.zig-cache/o/5d4c2eba87f5ecf2d03e319db48cd17f/zdu_zc
+69.73 KB  ./.zig-cache/o/e5c723dacc4a030a4a2b852750823cad/zdu
+272.25 KB ./.zig-cache/o/26283bde56878605b8de1efba924ae01/zdu_zc
+21 B      ./.zig-cache/o/c7a3e02a9b0d3b08f8dc146729a2bc14/cimpor
+271.00 KB ./.zig-cache/o/26283bde56878605b8de1efba924ae01/zdu.ex
+13.30 KB  ./.zig-cache/o/c7a3e02a9b0d3b08f8dc146729a2bc14/cimpor
 ================= ZDU Report =================
-Entry Path   | .
-Directories  | 10,303
-Files        | 37,302
-Total Size   | 1,865,390,941 bytes (1.78 GB)
+| Entry Path   | .
+| Directories  | 182
+| Files        | 365
+| Total Size   | 1,064,806,639 (1015.48 MB)
 ==============================================
 ```
 
