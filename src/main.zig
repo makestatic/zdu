@@ -2,9 +2,65 @@
 // licensed under GPLv3+
 
 const std = @import("std");
-
-pub const VERSION = "15.2";
 const usage = @embedFile("usage.txt");
+pub const VERSION = "16.0";
+
+
+/// Windows terminal size
+pub const winsize = struct {
+    ws_row: u16,
+    ws_col: u16,
+    ws_xpixel: u16,
+    ws_ypixel: u16,
+};
+
+/// Platform-specific helpers
+fn getWinsizeLinux() ?winsize {
+    var ws: winsize = undefined;
+    const TIOCGWINSZ: c_ulong = 0x5413;
+    if (std.c.ioctl(std.c.STDOUT_FILENO, TIOCGWINSZ, &ws) < 0) {
+        return null;
+    }
+    return ws;
+}
+
+fn getWinsizeBSD() ?winsize {
+    var ws: winsize = undefined;
+    const TIOCGWINSZ: c_ulong = 0x40087468; // macOS + FreeBSD
+    if (std.c.ioctl(std.c.STDOUT_FILENO, TIOCGWINSZ, &ws) < 0) {
+        return null;
+    }
+    return ws;
+}
+
+fn getWinsizeWindows() ?winsize {
+    const kernel32 = @cImport({
+        @cInclude("windows.h");
+    });
+
+    var info: kernel32.CONSOLE_SCREEN_BUFFER_INFO = undefined;
+    const h = kernel32.GetStdHandle(kernel32.STD_OUTPUT_HANDLE);
+    if (kernel32.GetConsoleScreenBufferInfo(h, &info) == 0) {
+        return null;
+    }
+
+    return winsize{
+        .ws_row = @intCast(info.srWindow.Bottom - info.srWindow.Top + 1),
+        .ws_col = @intCast(info.srWindow.Right - info.srWindow.Left + 1),
+        .ws_xpixel = 0,
+        .ws_ypixel = 0,
+    };
+}
+
+/// Terminal size getter
+pub fn getTerminalSize() ?winsize {
+    return switch (@import("builtin").os.tag) {
+        .linux => getWinsizeLinux(),
+        .macos, .freebsd => getWinsizeBSD(),
+        .windows => getWinsizeWindows(),
+        else => null,
+    };
+}
 
 /// system info
 const TargetInfo = struct {
@@ -47,8 +103,7 @@ const OPTIONS = struct {
 /// Parse passed arguments
 fn parseArgs(args: []const []const u8, allocator: std.mem.Allocator) !ParsedArgs {
     var opts = OPTIONS{};
-    var exclude = try std.ArrayList([]const u8).initCapacity(allocator, 8);
-    defer exclude.deinit(allocator);
+    var exclude = std.ArrayList([]const u8).initCapacity(allocator, 1) catch unreachable;
 
     for (args[1..]) |arg| {
         if (std.mem.startsWith(u8, arg, "-ex=")) {
@@ -83,8 +138,9 @@ const ZDU = struct {
     dirs_count: std.atomic.Value(usize) = std.atomic.Value(usize).init(0),
     files_count: std.atomic.Value(usize) = std.atomic.Value(usize).init(0),
     size: std.atomic.Value(u64) = std.atomic.Value(u64).init(0),
+    ws: winsize = undefined,
 
-    pub fn init(allocator: std.mem.Allocator) !ZDU {
+    pub fn init(allocator: std.mem.Allocator) ZDU {
         return ZDU{ .allocator = allocator };
     }
 
@@ -95,13 +151,22 @@ const ZDU = struct {
 
     /// Start directory traversal
     pub fn cycle(self: *ZDU, base_path: []const u8, exs: []const []const u8, opts: OPTIONS) !void {
-        // Init thread pool
+        // Init thread pool with optimal thread count
+        const cpu_count = std.Thread.getCpuCount() catch 8;
         try self.pool.init(.{
             .allocator = self.allocator,
-            .n_jobs = std.Thread.getCpuCount() catch 8,
+            .n_jobs = @min(cpu_count * 2, 32), // Cap at 32 threads to prevent overhead
         });
+
+        if (getTerminalSize()) |ws| {
+            self.ws = ws;
+        } else {
+            // Default fallback size
+            self.ws = winsize{ .ws_row = 24, .ws_col = 80, .ws_xpixel = 0, .ws_ypixel = 0 };
+        }
+
         // Spawn root directory
-        const root = try std.mem.Allocator.dupe(self.allocator, u8, base_path);
+        const root = try self.allocator.dupe(u8, base_path);
         self.pool.spawnWg(&self.wg, processDir, .{ self, root, exs, opts });
         // Wait for pool to finish before exiting
         self.wg.wait();
@@ -118,31 +183,34 @@ fn processDir(zdu: *ZDU, path: []u8, exs: []const []const u8, opts: OPTIONS) voi
     }) catch return;
     defer dir.close();
 
-    var local_dirs: usize = 0;
+    var local_dirs: usize = 0; // Count self
+    local_dirs += 1;
     var local_files: usize = 0;
     var local_size: u64 = 0;
-    local_dirs += 1;
 
     var it = dir.iterate();
     while (it.next() catch null) |entry| {
         if (entry.kind == .directory) {
+            // Inline exclusion check for directory names
             var skip = false;
-            for (exs) |ex| if (std.mem.eql(u8, entry.name, ex)) {
-                skip = true;
-                break;
-            };
-            // Skip if excluded
+            for (exs) |ex| {
+                if (std.mem.eql(u8, entry.name, ex)) {
+                    skip = true;
+                    break;
+                }
+            }
             if (skip) continue;
-            local_dirs += 1;
 
             const full_path = std.fs.path.join(zdu.allocator, &.{ path, entry.name }) catch continue;
 
-            for (exs) |ex| if (std.mem.eql(u8, full_path, ex)) {
-                zdu.allocator.free(full_path);
-                skip = true;
-                break;
-            };
-            // Skip if excluded; absolute path
+            // Check full path exclusions
+            for (exs) |ex| {
+                if (std.mem.eql(u8, full_path, ex)) {
+                    zdu.allocator.free(full_path);
+                    skip = true;
+                    break;
+                }
+            }
             if (skip) continue;
 
             // Spawn child directory
@@ -153,16 +221,33 @@ fn processDir(zdu: *ZDU, path: []u8, exs: []const []const u8, opts: OPTIONS) voi
             local_files += 1;
             local_size += st.size;
 
-            // Hot print if verbose
+            // Hot print if verbose - optimized for less allocations
             if (opts.verbose) {
-                const full_path = std.fs.path.join(zdu.allocator, &.{ path, entry.name }) catch continue;
-                defer zdu.allocator.free(full_path);
-                std.debug.print("{d}B {s}\n", .{ st.size, full_path });
+                var path_buf: [std.fs.max_path_bytes]u8 = undefined;
+                const full_path = std.fmt.bufPrint(&path_buf, "{s}{c}{s}", .{ path, std.fs.path.sep, entry.name }) catch continue;
+
+                var size_buf: [32]u8 = undefined;
+                const size_str = humanSize(&size_buf, st.size) catch {
+                    const fallback = std.fmt.bufPrint(&size_buf, "{d}", .{st.size}) catch continue;
+                    std.debug.print("{s}\n", .{fallback});
+                    continue;
+                };
+
+                const term_cols = zdu.ws.ws_col;
+                const size_col_width = @max(size_str.len, 9);
+                const padding = 1;
+                const available = if (term_cols > (size_col_width + padding))
+                    term_cols - (size_col_width + padding)
+                else
+                    full_path.len;
+
+                const truncated = full_path[0..@min(full_path.len, available)];
+                std.debug.print("{s:<9} {s}\n", .{ size_str, truncated });
             }
         }
     }
 
-    // Push local counts
+    // Batch update counts for better cache locality
     _ = zdu.dirs_count.fetchAdd(local_dirs, .monotonic);
     _ = zdu.files_count.fetchAdd(local_files, .monotonic);
     _ = zdu.size.fetchAdd(local_size, .monotonic);
@@ -173,7 +258,9 @@ pub fn main() !void {
     // Init at compile-time
     const target = TargetInfo.init();
 
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa = std.heap.GeneralPurposeAllocator(.{
+        .thread_safe = true,
+    }){};
     defer std.debug.assert(gpa.deinit() == .ok);
     const allocator = gpa.allocator();
 
@@ -186,10 +273,12 @@ pub fn main() !void {
     }
 
     const path = args[1];
-    const parsed = parseArgs(args, allocator) catch |err| {
+    var parsed = parseArgs(args, allocator) catch |err| {
         std.debug.print("[ERROR]: {s}\n\n{s}", .{ @errorName(err), usage });
         std.process.exit(1);
     };
+    defer parsed.exclude.deinit(allocator);
+
     const opts = parsed.opts;
     const exclude = parsed.exclude;
 
@@ -199,29 +288,87 @@ pub fn main() !void {
     }
 
     if (opts.version) {
-        std.debug.print("ZDU v{s} [{s}/{s}]\n", .{ VERSION, target.os, target.arch });
+        std.debug.print("version: {s} [{s}/{s}]\n", .{ VERSION, target.os, target.arch });
         std.process.exit(0);
     }
 
-    var zdu = try ZDU.init(allocator);
+    var zdu = ZDU.init(allocator);
     defer zdu.deinit();
 
     try zdu.cycle(path, exclude.items, opts);
 
     const size = zdu.size.load(.monotonic);
+    var buf_dirs: [32]u8 = undefined;
+    var buf_files: [32]u8 = undefined;
+    var buf_size: [32]u8 = undefined;
+    var buf_mb: [64]u8 = undefined;
 
     std.debug.print(
         \\================= ZDU Report =================
         \\| Entry Path   | {s}
-        \\| Directories  | {d}
-        \\| Files        | {d}
-        \\| Total Size   | {d} BYTES | {d} MB
+        \\| Directories  | {s}
+        \\| Files        | {s}
+        \\| Total Size   | {s} ({s}) 
         \\==============================================
+        \\
     , .{
         path,
-        zdu.dirs_count.load(.monotonic),
-        zdu.files_count.load(.monotonic),
-        size,
-        size / 1024 / 1024,
+        try commaFormat(&buf_dirs, zdu.dirs_count.load(.monotonic)),
+        try commaFormat(&buf_files, zdu.files_count.load(.monotonic)),
+        try commaFormat(&buf_size, size),
+        try humanSize(&buf_mb, size),
     });
+}
+
+fn humanSize(buf: []u8, bytes: u64) ![]u8 {
+    const KB: f64 = 1024.0;
+    const MB = KB * 1024.0;
+    const GB = MB * 1024.0;
+    const TB = GB * 1024.0;
+
+    const fbytes = @as(f64, @floatFromInt(bytes));
+
+    if (bytes >= @as(u64, @intFromFloat(TB)))
+        return std.fmt.bufPrint(buf, "{d:.2} TB", .{fbytes / TB});
+    if (bytes >= @as(u64, @intFromFloat(GB)))
+        return std.fmt.bufPrint(buf, "{d:.2} GB", .{fbytes / GB});
+    if (bytes >= @as(u64, @intFromFloat(MB)))
+        return std.fmt.bufPrint(buf, "{d:.2} MB", .{fbytes / MB});
+    if (bytes >= 1024)
+        return std.fmt.bufPrint(buf, "{d:.2} KB", .{fbytes / KB});
+    return std.fmt.bufPrint(buf, "{d} B", .{bytes});
+}
+
+fn commaFormat(buf: []u8, value: u64) ![]u8 {
+    if (value == 0) return std.fmt.bufPrint(buf, "0", .{});
+
+    // Count digits to optimize buffer usage
+    var temp = value;
+    var digit_count: usize = 0;
+    while (temp > 0) {
+        temp /= 10;
+        digit_count += 1;
+    }
+
+    const comma_count = (digit_count - 1) / 3;
+    const total_len = digit_count + comma_count;
+
+    // Format from right to left
+    var pos = total_len;
+    temp = value;
+    var digits_since_comma: usize = 0;
+
+    while (temp > 0) {
+        if (digits_since_comma == 3) {
+            pos -= 1;
+            buf[pos] = ',';
+            digits_since_comma = 0;
+        }
+        pos -= 1;
+        buf[pos] = '0' + @as(u8, @intCast(temp % 10));
+        temp /= 10;
+        digits_since_comma += 1;
+    }
+
+    return buf[0..total_len];
 }

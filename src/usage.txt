@@ -13,5 +13,3 @@ USAGE: zdu [path] [options]
       zdu /home/user -ex=build
       zdu /home/user -ex=build -ex=dist
       zdu /home/user -ex=build -ex=dist --verbose
-
-
